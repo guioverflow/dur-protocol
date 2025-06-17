@@ -10,7 +10,7 @@ class Server:
     def __init__(self, port):
         self.port = port
         self.last_commited = 0
-        self.data = dict() # chave = (valor, version)
+        self.data = dict() # chave = (valor, versão)
 
     def send(message, port):
         import socket
@@ -41,7 +41,7 @@ class Server:
     
     def start():
         while True:
-            operation, key, client_port = receive()
+            operation, key, client_port = receive() # Colocar em uma thread
             if operation == Operation.READ:
                 send(self.data[key], client_port)
             
