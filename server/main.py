@@ -45,4 +45,17 @@ class Server:
             if operation == Operation.READ:
                 send(self.data[key], client_port)
             
+            com_req, cid, tid, read_set, write_set = abcast.deliver() # Colocar em uma thread
+            for i, read_item in enumerate(read_set):
+                if self.data[read_item][1] > read_set[i][1]:
+                    send((Operation.ABORT, tid), cid)
+                    abort = True
+            
+            if not abort:
+                self.last_commited += 1
+                for j, write_item in enumerate(write_set):
+                    self.data[write_item[1]] += 1
+                    self.data[write_item[0]]
+                send((Operation.COMMIT), tid)
+            
 
