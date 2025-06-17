@@ -1,10 +1,5 @@
 
-from enum import Enum
-class Operation(Enum):
-    READ = "READ"
-    WRITE = "WRITE"
-    ABORT = "ABORT"
-    COMMIT = "COMMIT"
+from utils.operation import Operation
 
 class Server:
     def __init__(self, port):
