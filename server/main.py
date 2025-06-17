@@ -34,14 +34,15 @@ class Server:
         if type(data) != tuple or len(data) != 3:
             return None
 
-        operation, key, cid = data
+        operation, key, client_port = data
 
-        return (operation, key, cid)
+        return (operation, key, client_port)
 
     
     def start():
         while True:
-            request = receive()
-            if request[0] == Operation.READ:
-                send(self.data[key], port)
+            operation, key, client_port = receive()
+            if operation == Operation.READ:
+                send(self.data[key], client_port)
+            
 
