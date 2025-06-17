@@ -42,6 +42,6 @@ class Server:
     def start():
         while True:
             request = receive()
-            if request[0] == Operation.COMMIT:
+            if request[0] == Operation.READ:
                 send(self.data[key], port)
 
