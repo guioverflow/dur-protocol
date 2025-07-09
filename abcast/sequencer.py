@@ -21,7 +21,7 @@ class AbcastChannel:
             print(f"[Sequencer] Escutando em {self.host}:{self.port}")
             while True:
                 conn, addr = s.accept()
-                threading.Thread(target=self.handle_request, args=(conn, addr)).start()
+                threading.Thread(target=self.handle_request, args=(conn,)).start()
 
     def handle_request(self, conn):
         with conn:
@@ -29,11 +29,10 @@ class AbcastChannel:
             if not data: return
             message = json.loads(data.decode())
 
-            if message['type'] == 'BCAST':
-                with self.lock:
-                    self.seq += 1
-                    message['seq'] = self.seq
-                self.broadcast(message)
+            with self.lock:
+                self.seq += 1
+                message['seq'] = self.seq
+            self.broadcast(message)
 
     def broadcast(self, message):
         for ip, port in self.replicas:
