@@ -117,13 +117,15 @@ class Server:
     
     def start():
         self.send({'type': "JOIN"}, self.sequencer_port)
+
+        # thread_deliver 
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             s.bind((self.host, self.port))
             s.listen()
             print(f"[Sistema] Nova réplica instanciada {self.host}:{self.port}")
             while True:
                 conn, addr = s.accept()
-                threading.Thread(target=self.handle_request, args=(conn, addr)).start()
+                threading.Thread(target=self.handle_message, args=(conn, addr)).start()
 
 
         while True:

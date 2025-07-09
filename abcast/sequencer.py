@@ -37,27 +37,27 @@ class AbcastChannel:
             if not data: return
             message = json.loads(data.decode())
 
-            if message['type'] == 'JOIN':
-                ip, port = addr
-                self.replicas.append((ip, port))
-                print(f"[Sequencer] {addr} se juntou ao grupo.")
+            # if message['type'] == 'JOIN':
+            #     ip, port = addr
+            #     self.replicas.append((ip, port))
+            #     print(f"[Sequencer] {addr} se juntou ao grupo.")
 
-            if message['type'] == 'EXIT':
-                if addr in self.replicas:
-                    self.replicas.remove(addr)
-                    print(f"[Sequencer] {addr} saiu do grupo.")
+            # if message['type'] == 'EXIT':
+            #     if addr in self.replicas:
+            #         self.replicas.remove(addr)
+            #         print(f"[Sequencer] {addr} saiu do grupo.")
 
-            if message['type'] == 'CHOOSE':
-                choosen_replica = random.choice(self.replicas)
-                s_host, s_port = choosen_replica
-                c_host, c_port = addr
+            # if message['type'] == 'CHOOSE':
+            #     choosen_replica = random.choice(self.replicas)
+            #     s_host, s_port = choosen_replica
+            #     c_host, c_port = addr
 
-                response = {
-                    'host': s_host,
-                    'port': s_port
-                }
+            #     response = {
+            #         'host': s_host,
+            #         'port': s_port
+            #     }
 
-                self.send(response, c_port)
+            #     self.send(response, c_port)
 
             if message['type'] == 'BCAST':
                 with self.lock:
