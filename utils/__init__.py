@@ -8,8 +8,6 @@ def load_replicas(conf='replicas.conf'):
 
     replicas = list()
     for section in config.sections():
-        if section == 'sequencer': continue
-
         name = section
         host = config[section]['host']
         port = config[section]['port']
@@ -18,7 +16,7 @@ def load_replicas(conf='replicas.conf'):
 
     return replicas
 
-def get_sequencer(conf='replicas.conf'):
+def get_sequencer(conf='sequencer.conf'):
     config = configparser.ConfigParser()
     config.read(conf)
 
