@@ -5,6 +5,7 @@ import json
 import random
 
 from utils import load_replicas, get_sequencer
+from utils.unicast import send as unicast_send
 
 class AbcastChannel:
     def __init__(self):
@@ -15,31 +16,23 @@ class AbcastChannel:
         self.lock = threading.Lock()
 
     def start(self):
+        threading.Thread(target=self.listen_requests, args=(conn,)).start()
+
+    def listen_requests(self):
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             s.bind((self.host, self.port))
             s.listen()
             print(f"[Sequencer] Escutando em {self.host}:{self.port}")
             while True:
                 conn, addr = s.accept()
-                threading.Thread(target=self.handle_request, args=(conn,)).start()
+                message = deliver(conn)
 
-    def handle_request(self, conn):
-        with conn:
-            data = conn.recv(4096)
-            if not data: return
-            message = json.loads(data.decode())
-
-            with self.lock:
-                self.seq += 1
-                message['seq'] = self.seq
-            self.broadcast(message)
+                with self.lock:
+                    self.seq += 1
+                    message['seq'] = self.seq
+                self.broadcast(message)
 
     def broadcast(self, message):
-        for ip, port in self.replicas:
-            try:
-                with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                    s.connect((ip, port))
-                    s.sendall(json.dumps(message).encode())
-            except Exception as e:
-                print(f"[Sequencer] Falha no envio para {ip}:{port} - {e}")
+        for host, port in self.replicas:
+            unicast_send(host, port, message)
 
