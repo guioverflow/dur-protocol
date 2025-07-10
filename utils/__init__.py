@@ -3,10 +3,10 @@ import configparser
 
 def load_data_store():
     return {
-        'gui': (123, 0),
-        'x': (20, 0),
-        'y': (30, 0),
-        'z': (50, 0)
+        'gui': (123, 1),
+        'x': (20, 1),
+        'y': (30, 1),
+        'z': (50, 1)
     }
 
 def load_replicas(conf='replicas.conf'):

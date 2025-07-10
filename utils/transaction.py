@@ -3,6 +3,7 @@ import random
 import time
 import uuid
 import socket
+import json
 
 from utils import choose_replica
 from utils.unicast import request, receive, send as unicast_send
@@ -19,12 +20,16 @@ class Transaction:
 
         self.result = None
     
-    def _check_finished(self):
+    def _check_result(self):
         if self.result:
             print(f"[Cliente {self.cid}] Transação já finalizou com resultado: {self.result}")
-            return {'type': self.result, 'tid': self.tid}
+            return (self.tid, self.result)
+        return None
 
     def scan(self, think_time=0):
+        result = self._check_result()
+        if result: return result
+
         print(f"[Cliente {self.cid}] Efetuando SCAN no datastore")
         time.sleep(think_time)
 
@@ -33,8 +38,10 @@ class Transaction:
         return response
 
     def read(self, key, think_time=0):
+        result = self._check_result()
+        if result: return result
+
         print(f"[Cliente {self.cid}] Efetuando leitura na chave {key}")
-        self._check_finished()
         time.sleep(think_time)
 
         # primeiro procura no write_set
@@ -44,28 +51,40 @@ class Transaction:
                 return {'type': "READ", 'key': key, 'value': value}
 
         print(f"[Cliente {self.cid}] Valor não encontrado localmente, requisitando valor ao banco")
-        value, version = request(*self.replica, {'type': "READ", 'key': key, 'cid': self.cid})
+
+        response = request(*self.replica, {'type': 'READ', 'key': key, 'cid': self.cid})
+
+        value = response["value"]
+        version = response["version"]
+
         self.read_set.append((key, value, version))
+        return (key, value, version)
 
 
     def write(self, key, value, think_time=0):
+        result = self._check_result()
+        if result: return result
+
         print(f"[Cliente {self.cid}] Efetuando escrita na chave '{key}' com valor '{value}'")
-        self._check_finished()
         time.sleep(think_time)
         self.write_set.append((key, value))
         
         return {'type': "WRITE", 'key': key, 'value': value}
 
     def abort(self):
+        result = self._check_result()
+        if result: return result
+
         print(f"[Cliente {self.cid}] Abortando transação {self.tid}")
-        self._check_finished()
         self.result = "ABORTED"
 
-        return {'type': self.result, 'tid': self.tid}
+        return (self.tid, self.result)
 
     def commit(self):
+        result = self._check_result()
+        if result: return result
+
         print(f"[Cliente {self.cid}] Commitando transação {self.tid}")
-        self._check_finished()
 
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             s.bind(('localhost', self.cid))
@@ -85,10 +104,10 @@ class Transaction:
                 print(f"[Cliente {self.cid}] Espera do commit sofreu timeout")
                 self.result = "UNDEFINED"
             else:
-                self.result = receive(conn)
+                self.result = receive(conn, id=f'Cliente {self.cid}')
 
         # quem manda é a replica?
         # como sincronizar com abcast?
         # pode ser qualquer uma
         
-        return {'type': self.result, 'tid': self.tid}
+        return (self.tid, self.result)

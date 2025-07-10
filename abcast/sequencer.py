@@ -25,7 +25,7 @@ class AbcastChannel:
             print(f"[Sequencer] Escutando em {self.host}:{self.port}")
             while True:
                 conn, addr = s.accept()
-                message = receive(conn)
+                message = receive(conn, id=f'Sequencer')
 
                 with self.lock:
                     self.seq += 1
@@ -36,5 +36,5 @@ class AbcastChannel:
     def broadcast(self, message):
         print(f"[Sequencer] Realizando Atomic Broadcast")
         for host, _, abcast_port in self.replicas:
-            unicast_send(host, abcast_port, message)
+            unicast_send(host, abcast_port, message, id=f'Sequencer')
 

@@ -41,7 +41,7 @@ class Replica:
         response = json.dumps({"key": key, "value": value, "version": version}).encode()
 
         try: conn.sendall(response)
-        except Exception as e: print(f"[{self.host}:{self.read_port}] Falha ao enviar resposta READ: {e}")
+        except Exception as e: print(f"[Replica {self.read_port}] Falha ao enviar resposta READ: {e}")
 
     def handle_commit(self, conn):
         # {
@@ -61,10 +61,10 @@ class Replica:
 
         abort = False
         with self.lock:
-            for key, rs_version in rs:
+            for key, _, rs_version in rs:
                 current_value, current_version = self.data_store.get(key, (None, 0))
                 if current_version > rs_version:
-                    print(f"[{self.host}:{self.abcast_port}] Abortando transação {tid} (stale)")
+                    print(f"[Replica {self.read_port}] Abortando transação {tid} (stale)")
                     abort = True
 
             if not abort:
@@ -72,23 +72,23 @@ class Replica:
                 for key, value in ws:
                     old_value, old_version = self.data_store.get(key, (None, 0))
                     self.data_store[key] = (value, old_version + 1)
-                print(f"[{self.host}:{self.abcast_port}] Transação {tid} commitada")
+                print(f"[Replica {self.read_port}] Transação {tid} commitada")
     
         response = {
             "tid": tid,
             "status": 'ABORTED' if abort else 'COMMITED'
         }
 
-        uni.send('localhost', cid, response)
+        uni.send('localhost', cid, response, id=f'Replica {self.read_port}')
 
     def listen_read_requests(self):
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             s.bind((self.host, self.read_port))
             s.listen()
-            print(f"[{self.host}:{self.read_port}] Escutando requisições READ")
+            print(f"[Replica {self.read_port}] Escutando requisições READ")
             while True:
                 conn, _ = s.accept()
-                message = uni.receive(conn, close=False)
+                message = uni.receive(conn, close=False, id=f'Replica {self.read_port}')
 
                 if message['type'] == 'READ':
                     threading.Thread(target=self.handle_read, args=(message, conn), daemon=True).start()
@@ -99,7 +99,7 @@ class Replica:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             s.bind((self.host, self.abcast_port))
             s.listen()
-            print(f"[{self.host}:{self.abcast_port}] Escutando commits ABCAST")
+            print(f"[Replica {self.abcast_port}] Escutando commits ABCAST")
             while True:
                 conn, addr = s.accept()
                 threading.Thread(target=self.handle_commit, args=(conn,), daemon=True).start()
