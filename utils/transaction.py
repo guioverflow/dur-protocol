@@ -48,7 +48,7 @@ class Transaction:
         for search_key, value in reversed(self.write_set): # retorna o valor escrito mais recente
             if search_key == key:
                 print(f"[Cliente {self.cid}] Valor encontrado no read_set")
-                return (key, value, version)
+                return (key, value)
 
         print(f"[Cliente {self.cid}] Valor não encontrado localmente, requisitando valor ao banco")
 
