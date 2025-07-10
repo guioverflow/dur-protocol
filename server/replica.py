@@ -1,48 +1,59 @@
 
-from utils import get_sequencer
+
 import threading
+import socket
+import json
+
+import abcast
+from utils import get_sequencer, load_data_store
+import utils.unicast as uni
 
 class Replica:
-    def __init__(self, host, port, sequencer_port):
+    def __init__(self, host, read_port, abcast_port):
         self.host = host
-        self.port = port
-        _, self.sequencer_port = get_sequencer()
+        self.read_port = read_port
+        self.abcast_port = abcast_port
 
-        self.data_store = dict() # key-store
         self.last_commited = 0
         self.lock = threading.Lock()
+        self.data_store = load_data_store()
 
-    def handle_read(self, conn, addr):
+    def handle_scan(self, message, conn):
         # {
-        #     "type": "READ",
-        #     "cid": 4001,
-        #     "key": "gui"
+        #     "type": "SCAN",
+        #     "cid": 4050
         # }
 
-        with conn:
-            data = conn.recv(4096)
-            if not data:
-                return
-            message = json.loads(data.decode())
+        conn.sendall(json.dumps(self.data_store).encode())
+
+    def handle_read(self, message, conn):
+        # {
+        #     "type": "READ",
+        #     "cid": 4050,
+        #     "key": "gui"
+        # }
 
         cid = message['cid']
         key = message['key']
 
         value, version = self.data_store.get(key, (None, 0))
 
-        self.send(*addr, {"key": key, "value": value, "version": version})
+        response = json.dumps({"key": key, "value": value, "version": version}).encode()
 
-    def handle_commit(self, message, addr):
+        try: conn.sendall(response)
+        except Exception as e: print(f"[{self.host}:{self.read_port}] Falha ao enviar resposta READ: {e}")
+
+    def handle_commit(self, conn):
         # {
-        #     "type": "COMMIT"
-        #     "com_req": 4,
-        #     "cid": 4001, # Porta 
-        #     "tid": 123,
+        #     "type": "COMMIT_REQ"
+        #     "cid": 10, 
+        #     "tid": 123sadd-asxsad-safaewqd,
         #     "rs": [("gui", 40, 3), ("gui", 42, 4), ("gui", 100, 5)],
         #     "ws": [("gui", 123), ("teste", 456)]
         # }
 
-        com_req = message['com_req']
+        message = abcast.deliver(conn)
+
         cid = message['cid']
         tid = message['tid']
         rs = message['rs']
@@ -53,7 +64,7 @@ class Replica:
             for key, rs_version in rs:
                 current_value, current_version = self.data_store.get(key, (None, 0))
                 if current_version > rs_version:
-                    print(f"[Replica {self.port}] Abortando transação {tid} (stale).")
+                    print(f"[{self.host}:{self.abcast_port}] Abortando transação {tid} (stale)")
                     abort = True
 
             if not abort:
@@ -61,42 +72,41 @@ class Replica:
                 for key, value in ws:
                     old_value, old_version = self.data_store.get(key, (None, 0))
                     self.data_store[key] = (value, old_version + 1)
-                print(f"[Replica {self.port}] Transação {tid} commitada req={com_req}.")
+                print(f"[{self.host}:{self.abcast_port}] Transação {tid} commitada")
     
         response = {
             "tid": tid,
             "status": 'ABORTED' if abort else 'COMMITED'
         }
 
-        self.send(*addr, response)
-    
-    def start():
+        uni.send('localhost', cid, response)
 
-        # thread_deliver 
+    def listen_read_requests(self):
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            s.bind((self.host, self.port))
+            s.bind((self.host, self.read_port))
             s.listen()
-            print(f"[Sistema] Nova réplica instanciada {self.host}:{self.port}")
+            print(f"[{self.host}:{self.read_port}] Escutando requisições READ")
+            while True:
+                conn, _ = s.accept()
+                message = uni.receive(conn, close=False)
+
+                if message['type'] == 'READ':
+                    threading.Thread(target=self.handle_read, args=(message, conn), daemon=True).start()
+                elif message['type'] == 'SCAN':
+                    threading.Thread(target=self.handle_scan, args=(message, conn), daemon=True).start()
+
+    def listen_abcast_commits(self):
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.bind((self.host, self.abcast_port))
+            s.listen()
+            print(f"[{self.host}:{self.abcast_port}] Escutando commits ABCAST")
             while True:
                 conn, addr = s.accept()
-                threading.Thread(target=self.handle_message, args=(conn, addr)).start()
+                threading.Thread(target=self.handle_commit, args=(conn,), daemon=True).start()
 
 
-        while True:
-            operation, key, client_port = receive() # Colocar em uma thread
-            if operation == Operation.READ:
-                send(self.data[key], client_port)
-            
-            com_req, cid, tid, read_set, write_set = abcast.deliver() # Colocar em uma thread
-            for i, read_item in enumerate(read_set):
-                if self.data[read_item][1] > read_set[i][1]:
-                    send((Operation.ABORT, tid), cid)
-                    abort = True
-            
-            if not abort:
-                self.last_commited += 1
-                for j, write_item in enumerate(write_set):
-                    self.data[write_item[1]] += 1
-                    self.data[write_item[0]]
-                send((Operation.COMMIT), tid)
-            
+    def start(self):
+        threading.Thread(target=self.listen_read_requests, daemon=True).start()
+        threading.Thread(target=self.listen_abcast_commits, daemon=True).start()
+
+        threading.Event().wait()

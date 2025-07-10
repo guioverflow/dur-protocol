@@ -1,6 +1,13 @@
 
 import configparser
 
+def load_data_store():
+    return {
+        'gui': (123, 0),
+        'x': (20, 0),
+        'y': (30, 0),
+        'z': (50, 0)
+    }
 
 def load_replicas(conf='replicas.conf'):
     config = configparser.ConfigParser()
@@ -9,9 +16,10 @@ def load_replicas(conf='replicas.conf'):
     replicas = list()
     for section in config.sections():
         host = config[section]['host']
-        port = config[section]['port']
+        read_port = int(config[section]['read_port'])
+        abcast_port = int(config[section]['abcast_port'])
 
-        replicas.append((host, port))
+        replicas.append((host, read_port, abcast_port))
 
     return replicas
 
@@ -20,5 +28,15 @@ def get_sequencer(conf='sequencer.conf'):
     config.read(conf)
 
     host = config['sequencer']['host']
-    port = config['sequencer']['port']
+    port = int(config['sequencer']['port'])
     return (host, port)
+
+def choose_replica():
+    import random
+
+    replicas = load_replicas()
+    chosen_replica = random.choice(replicas)
+    
+    # Cliente não precisa do abcast_port
+    host, read_port, _ = chosen_replica
+    return (host, read_port)
