@@ -8,11 +8,10 @@ def load_replicas(conf='replicas.conf'):
 
     replicas = list()
     for section in config.sections():
-        name = section
         host = config[section]['host']
         port = config[section]['port']
 
-        replicas.append((name, host, port))
+        replicas.append((host, port))
 
     return replicas
 
