@@ -33,7 +33,7 @@ class Transaction:
         print(f"[Cliente {self.cid}] Efetuando SCAN no datastore")
         time.sleep(think_time)
 
-        response = request(*self.replica, {'type': "SCAN", 'cid': self.cid})
+        response = request(*self.replica, {'type': "SCAN", 'cid': self.cid}, id=f'Cliente {self.cid}')
         response = {k: tuple(v) for k, v in response.items()} # JSON não suporta tuplas, dessa forma é necessário normalizar
         return response
 
@@ -48,11 +48,11 @@ class Transaction:
         for search_key, value in reversed(self.write_set): # retorna o valor escrito mais recente
             if search_key == key:
                 print(f"[Cliente {self.cid}] Valor encontrado no read_set")
-                return {'type': "READ", 'key': key, 'value': value}
+                return (key, value, version)
 
         print(f"[Cliente {self.cid}] Valor não encontrado localmente, requisitando valor ao banco")
 
-        response = request(*self.replica, {'type': 'READ', 'key': key, 'cid': self.cid})
+        response = request(*self.replica, {'type': 'READ', 'key': key, 'cid': self.cid}, id=f'Cliente {self.cid}')
 
         value = response["value"]
         version = response["version"]
@@ -69,16 +69,16 @@ class Transaction:
         time.sleep(think_time)
         self.write_set.append((key, value))
         
-        return {'type': "WRITE", 'key': key, 'value': value}
+        return (key, value)
 
     def abort(self):
         result = self._check_result()
         if result: return result
 
         print(f"[Cliente {self.cid}] Abortando transação {self.tid}")
-        self.result = "ABORTED"
+        self.result = (self.tid, "ABORTED")
 
-        return (self.tid, self.result)
+        return self.result
 
     def commit(self):
         result = self._check_result()
@@ -104,10 +104,7 @@ class Transaction:
                 print(f"[Cliente {self.cid}] Espera do commit sofreu timeout")
                 self.result = "UNDEFINED"
             else:
-                self.result = receive(conn, id=f'Cliente {self.cid}')
-
-        # quem manda é a replica?
-        # como sincronizar com abcast?
-        # pode ser qualquer uma
+                response = receive(conn, id=f'Cliente {self.cid}')
+                self.result = (response['tid'], response['status'])
         
-        return (self.tid, self.result)
+        return self.result
