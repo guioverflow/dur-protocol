@@ -1,31 +1,52 @@
 
+"""
+READS ALTERNADOS
 
+Duas transações aplicam alternadamente reads em uma mesma chave.
+Ambas conseguem commitar, e como não há nenhuma escrita, ambas passam da validação de readset.
+"""
+
+import threading
+import time
 from utils.transaction import Transaction
 
+def tx1():
+    t = Transaction(cid=4051)
 
-def run_transaction_1():
-    t = Transaction(cid=10)
-    t.write("x", 100, think_time=2)
-    t.read("x", think_time=1)
+    x = t.read("x", think_time=1)
+    print(f"[TX1] {x}")
+
+    x = t.read("x", think_time=2)
+    print(f"[TX1] {x}")
+
+    x = t.read("x", think_time=2)
+    print(f"[TX1] {x}")
+
     t.commit()
+    print("[TX1] Result:", t.result)
 
-    print(f"TX1: {t.result}")
-    
+def tx2():
+    t = Transaction(cid=4052)
 
-def run_transaction_2():
-    t = Transaction(cid=20)
+    x = t.read("x", think_time=2)
+    print(f"[TX2] {x}")
 
-    temp = t.read("y", think_time=5)
-    t.write("x", temp, think_time=1)
+    x = t.read("x", think_time=2)
+    print(f"[TX2] {x}")
+
+    x = t.read("x", think_time=2)
+    print(f"[TX2] {x}")
+
     t.commit()
+    print("[TX2] Result:", t.result)
 
-    print(f"TX2: {t.result}")
 
-t1 = threading.Thread(target=run_transaction_1)
-t2 = threading.Thread(target=run_transaction_2)
+t1 = threading.Thread(target=tx1)
+t2 = threading.Thread(target=tx2)
 
 t1.start()
 t2.start()
+
 t1.join()
 t2.join()
 
