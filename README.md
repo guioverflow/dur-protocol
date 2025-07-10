@@ -36,4 +36,4 @@ O trabalho consiste em implementar o programa, incluindo:
 
 # Uso da aplicação
 
-Na raiz do projeto, basta instanciar os servidores e sequenciador com o script `main.py` fazendo uma chamada `python main.py`. Com os servidores instanciados, pode-se abrir um novo terminal para aplicar os casos de teste, invocando da seguinte maneira `python -m teste_cases.<numero>`, por exemplo: `python -m teste_cases.3`. Para verificação dos resultados em tempo real, pode-se utilizar o notebook "adhoc.ipynb", que já possui uma função pronta de scan do datastore, como também é possível criar transações personalizadas.
+Na raiz do projeto, basta instanciar os servidores e sequenciador com o script `main.py` fazendo uma chamada `python main.py`. Com os servidores instanciados, pode-se abrir um novo terminal para aplicar os casos de teste, invocando da seguinte maneira `python -m test_cases.<numero>`, por exemplo: `python -m test_cases.3`. Para verificação dos resultados em tempo real, pode-se utilizar o notebook "adhoc.ipynb", que já possui uma função pronta de scan do datastore, como também é possível criar transações personalizadas.
